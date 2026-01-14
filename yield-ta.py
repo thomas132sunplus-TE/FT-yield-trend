@@ -11,7 +11,7 @@ from openpyxl.chart.shapes import GraphicalProperties
 input_file = 'Sunplus_Yield_control_table.xlsx'
 output_file = 'yield_trend_6.xlsx'
 sheet_name = 'QAL642E LFBGA 487B'
-columns_to_keep = ["B", "C", "D", "F", "G", "S", "T"]
+columns_to_keep = "B, C, D, F, G, S, T"
 
 try:
     # 1️⃣ 讀取 Excel，篩選特定欄位，跳過第一列
