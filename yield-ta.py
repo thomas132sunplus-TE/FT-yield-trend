@@ -103,7 +103,13 @@ try:
             y_values = Reference(ws, min_col=col_index, min_row=1, max_row=last_row)
             combo_chart.add_data(y_values, titles_from_data=True)
 
+        # 讓折線圖恢復稜角（不平滑）
+        for s in combo_chart.series:
+            s.smooth = False
+
         combo_chart.set_categories(x_values)
+        # 讓每個 Lot# 都顯示在 X 軸
+        combo_chart.x_axis.tickLblSkip = 1
 
         # 加標準線
         std_line_values = [0.98] * (last_row - 1)
