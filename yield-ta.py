@@ -14,13 +14,19 @@ sheet_name = 'QAL642E LFBGA 487B'
 columns_to_keep = "B, C, D, F, G, S, T"
 
 try:
-    # 1️⃣ 讀取 Excel，篩選特定欄位，跳過第一列
+
+
+    # 1️⃣ 讀取 Excel，篩選特定欄位（用欄位位置），跳過第一列
     df = pd.read_excel(input_file, sheet_name=sheet_name, usecols=columns_to_keep, skiprows=1)
     df.to_excel('yield_trend_a.xlsx')
+
 
     # 2️⃣ 新增 RT rate 欄位
     df["RT rate"] = None
     df.to_excel('yield_trend_b.xlsx')
+
+
+    # ...已移除空值與型態檢查...
 
     # 3️⃣ 修改 Station 名稱
     def modify_ft(station, pgm_name):

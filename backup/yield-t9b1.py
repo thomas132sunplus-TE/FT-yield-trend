@@ -12,53 +12,65 @@ input_file = 'Sunplus_Yield_control_table.xlsx'
 output_file = 'yield_trend_6.xlsx'
 sheet_name = 'QAL642E LFBGA 487B'
 
-# 指定要保留的欄位
-columns_to_keep = "B, C, D, F, G, S, T"
+# 指定要保留的欄位 (可以改用欄位名稱或字母範圍)
+columns_to_keep = "B,C,D,F,G,S,T"
 
 try:
     # **1️⃣ 讀取 Excel，篩選特定欄位，跳過第一列**
     df = pd.read_excel(input_file, sheet_name=sheet_name, usecols=columns_to_keep, skiprows=1)
-    df.to_excel('yield_trend_a.xlsx') 
 
-    # **2️⃣ 新增 RT rate 欄位**
-    df["RT rate"] = None  # 預設值
-    df.to_excel('yield_trend_b.xlsx') 
+    # **2️⃣ 新增 RT rate 欄位（預設為 NaN）**
+    df["RT rate"] = pd.NA
 
 
     # **3️⃣ 解析 PGM Name，修改 FT 為 FT1、FT2...**
     def modify_ft(station, pgm_name):
-        """ 如果 Station 是 FT，則從 PGM Name 中提取 f 後的數字，變成 FT1、FT2... """
-        if station == "FT":
-            match = re.search(r"f(\d+)", pgm_name)
-            if match:
-                return f"FT{match.group(1)}"
+        """如果 Station 是 FT，則從 PGM Name 中提取 f 或 F 後的數字，變成 FT1、FT2..."""
+        try:
+            if str(station).upper() == "FT":
+                if pd.isna(pgm_name):
+                    return station
+                match = re.search(r"f(\d+)", str(pgm_name), re.IGNORECASE)
+                if match:
+                    return f"FT{match.group(1)}"
+        except Exception:
+            pass
         return station
 
-    df["Station"] = df.apply(lambda row: modify_ft(row["Station"], row["PGM Name"]), axis=1)
-    df.to_excel('yield_trend_c.xlsx')
+    df["Station"] = df.apply(lambda row: modify_ft(row.get("Station"), row.get("PGM Name")), axis=1)
 
-    # **4️⃣ 計算 RT rate**
-    rt_rate = None
+    # **4️⃣ 計算 RT rate（更健壯的迴圈）**
+    rt_rate = 0
+    rt_start_idx = None
 
     for idx in df.index:
-        station = str(df.at[idx, "Station"])
+        station = str(df.at[idx, "Station"]).strip()
 
         if station.startswith("FT"):
             rt_rate = 0
             rt_start_idx = idx
 
-        elif re.match(r"R(\d+)", station):
-            rt_rate = max(rt_rate, int(re.match(r"R(\d+)", station).group(1)))
+        else:
+            m = re.match(r"R(\d+)", station)
+            if m:
+                value = int(m.group(1))
+                if rt_start_idx is None:
+                    # 如果尚未遇到 FT，先設定 start idx 為目前索引
+                    rt_start_idx = idx
+                rt_rate = max(rt_rate, value)
 
-        elif station == "Total":
-            df.loc[rt_start_idx:idx, "RT rate"] = rt_rate
-            rt_rate = None
+            elif station == "Total":
+                if rt_start_idx is not None:
+                    df.loc[rt_start_idx:idx, "RT rate"] = rt_rate
+                rt_rate = 0
+                rt_start_idx = None
 
-    df.to_excel('yield_trend_d.xlsx')        
-
-    # **5️⃣ 刪除包含 NaN 的列**   
-    df_cleaned = df.dropna()
-    df_cleaned.to_excel('yield_trend_e.xlsx')
+    # **5️⃣ 只移除關鍵欄位為 NaN 的列，而不是全部欄位**
+    required_cols = [c for c in ("Lot#", "First Pass Yield", "Overall Yield") if c in df.columns]
+    if required_cols:
+        df_cleaned = df.dropna(subset=required_cols)
+    else:
+        df_cleaned = df.copy()
 
     # **6️⃣ 分類 FT1, FT2, FT3 到不同的 Sheet**
     with pd.ExcelWriter(output_file, engine="openpyxl") as writer:
@@ -75,8 +87,11 @@ try:
             ws.column_dimensions[col[0].column_letter].width = max_length + 2
     
     
-    # **8️⃣ 統一 RT rate Y 軸高度** 
-    max_rt_rate = max(df_cleaned["RT rate"])
+    # **8️⃣ 統一 RT rate Y 軸高度（安全取得最大值）** 
+    try:
+        max_rt_rate = int(df_cleaned["RT rate"].dropna().max() or 0)
+    except Exception:
+        max_rt_rate = 0
 
     # **9️⃣ 為每個 FT Sheet 加入趨勢圖**
     for sheet_name in wb.sheetnames:

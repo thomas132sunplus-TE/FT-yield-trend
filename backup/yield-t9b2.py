@@ -9,8 +9,8 @@ from openpyxl.chart.shapes import GraphicalProperties
 
 # 設定檔案名稱
 input_file = 'Sunplus_Yield_control_table.xlsx'
-output_file = 'QFH633B_FT_yield_trend.xlsx'
-sheet_name = 'QFH633B LQFP 128L'
+output_file = 'yield_trend_6.xlsx'
+sheet_name = 'QAL642E LFBGA 487B'
 columns_to_keep = "B, C, D, F, G, S, T"
 
 try:
